@@ -20,6 +20,7 @@ public:
 	quat rotVel; //rotation velocity in quaternions
 
 	float hp;
+	float defaultHp;
 
 	GameObject(Mesh *mesh);
 	mat4x4 getModelMatrix();

@@ -1,10 +1,20 @@
 #include "Mesh.hpp"
+#include "tangentspace.hpp"
 
-Mesh::Mesh(vector<vec3> vertices, vector<vec2> uvs, vector<vec3> normals, GLuint texture) {
+Mesh::Mesh(vector<vec3> vertices, vector<vec2> uvs, vector<vec3> normals, GLuint Dtexture, GLuint Ntexture, GLuint Stexture) {
 	this->vertices = vertices;
 	this->uvs = uvs;
 	this->normals = normals;
-	this->texture = texture;
+	this->Dtexture = Dtexture;
+	this->Ntexture = Ntexture;
+	this->Stexture = Stexture;
+
+	std::vector<glm::vec3> tangents;
+	std::vector<glm::vec3> bitangents;
+	computeTangentBasis(vertices, uvs, normals, tangents, bitangents);
+
+	this->tangents = tangents;
+	this->bitangents = bitangents;
 
 	//calculate the radius
 	float radSquared = 0;
@@ -19,7 +29,7 @@ Mesh::Mesh(vector<vec3> vertices, vector<vec2> uvs, vector<vec3> normals, GLuint
 
 	this->init();
 }
-
+//extern short nFunction;
 void Mesh::init() {
 
 	glGenVertexArrays(1, &vao);
@@ -46,6 +56,20 @@ void Mesh::init() {
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+	//create tangent VBO
+	glGenBuffers(1, &tVbo);
+	glBindBuffer(GL_ARRAY_BUFFER, tVbo);
+	glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(vec3), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	//create bitangent VBO
+	glGenBuffers(1, &btVbo);
+	glBindBuffer(GL_ARRAY_BUFFER, btVbo);
+	glBufferData(GL_ARRAY_BUFFER, bitangents.size() * sizeof(vec3), &bitangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -54,6 +78,8 @@ Mesh::~Mesh() {
 	glDeleteBuffers(1, &vVbo);
 	glDeleteBuffers(1, &uvVbo);
 	glDeleteBuffers(1, &nVbo);
+	glDeleteBuffers(1, &tVbo);
+	glDeleteBuffers(1, &btVbo);
 	glDeleteVertexArrays(1, &vao);
 }
 

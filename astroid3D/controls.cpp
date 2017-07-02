@@ -11,7 +11,6 @@ extern GLFWwindow* window;
 #include <glm/gtc/matrix_transform.hpp>
 using namespace glm;
 
-
 #include "controls.hpp"
 
 glm::mat4 ViewMatrix;

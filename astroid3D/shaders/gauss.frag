@@ -17,7 +17,8 @@ void main(){
 		for(int i=0; i<weights.length(); i++){
 			color+=weights[i] * texture(gaussTexture, UV+vec2((i-center)*pxlSize.x, 0.0)).rgb;
 		}
-	}else{
+	}
+	else {
 		for(int i=0; i<weights.length(); i++){
 			color+=weights[i] * texture(gaussTexture, UV+vec2(0.0, (i-center)*pxlSize.y)).rgb;
 		}

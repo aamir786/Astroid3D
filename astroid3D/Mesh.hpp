@@ -17,7 +17,7 @@ struct Texture { //making it a struct in case we need some more properties
 };
 
 /*
-	Stores static geometry informaton for rendering
+	Stores static geometry information for rendering
 */
 class Mesh {
 public:
@@ -25,16 +25,25 @@ public:
 	vector<vec3> vertices;
 	vector<vec2> uvs;
 	vector<vec3> normals;
-	GLuint texture;
+	vector<vec3> tangents;
+	vector<vec3> bitangents;
+	//Tangents
+
+	GLuint Dtexture;
+	GLuint Ntexture;
+	GLuint Stexture;
 	float radius;
 
 	GLuint vao;
 	GLuint vVbo; //vertex vbo
 	GLuint uvVbo; //texture coordinates vbo
 	GLuint nVbo; //normal vbo
+	GLuint tVbo;
+	GLuint btVbo;
+
 
 	//METHODS:
-	Mesh(vector<vec3> vertices, vector<vec2> uvs, vector<vec3> normals, GLuint texture);
+	Mesh(vector<vec3> vertices, vector<vec2> uvs, vector<vec3> normals, GLuint,GLuint,GLuint);
 	~Mesh();
 
 private:
