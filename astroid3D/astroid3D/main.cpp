@@ -55,7 +55,7 @@ vector<Bullet> bullets; //list of bullets
 vector<GameObject> asteroids; //list of asteroids
 bool m_bIsWireFrame = false;
 bool m_bIsCulling = false;
-short nFunction = 0;
+short nFunction = 0, nDisplay = -1;
 bool bFinished = false;
 void renderMesh(Mesh *mesh) {
 	glActiveTexture(GL_TEXTURE0);
@@ -126,16 +126,20 @@ void onKeyBoard_callback(GLFWwindow* window, int key, int scancode, int action, 
 	if(bFinished) return;
 	if (key == GLFW_KEY_F3 && action == GLFW_PRESS){
 		m_bIsWireFrame = !m_bIsWireFrame;
+		nDisplay = 1;
 	}
 	if (key == GLFW_KEY_F6 && action == GLFW_PRESS){ //Edge Detection
 		nFunction = 2;
+		nDisplay = 2;
 	}
 	if (key == GLFW_KEY_F7 && action == GLFW_PRESS){ //Normal Mapping
 		nFunction = 3;
+		nDisplay = 3;
 	}
 	if (key == GLFW_KEY_F8 && action == GLFW_PRESS){
 		nFunction = 1;
 		m_bIsCulling = !m_bIsCulling;
+		nDisplay = 4;
 	}
 }
 
@@ -785,7 +789,21 @@ int main(void){
 		sprintf(text,"Time : %.2f sec", fTimeOut);
 		printText2D(text, 10, 550, 20);
 		sprintf(text,"Asteroids : %d", asteroids.size() );
-		printText2D(text, 10, 510, 20);		
+		printText2D(text, 10, 510, 20);	
+
+		if(nDisplay == 1) {
+			printText2D("WireFrame Enabled", 1024/2-200, 50, 20);	
+		}
+		else if (nDisplay == 2) {
+			printText2D("Edge Detection Enabled", 1024/2-200, 50, 20);	
+		}
+		else if (nDisplay == 3) {
+			
+			printText2D("Normal Mapping Enabled", 1024/2-200, 50, 20);	
+		}
+		else if (nDisplay == 4) {
+			printText2D("Frustum Culling Enabled", 1024/2-200, 50, 20);
+		}
 
 #pragma region BillBoardShader
 		glm::vec3 CameraPosition(glm::inverse(ViewMatrix)[3]);
