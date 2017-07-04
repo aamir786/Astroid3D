@@ -47,6 +47,7 @@ float speed = 0.333f;
 float mouseSpeed = 0.005f;
 
 
+glm::vec3 up;
 
 void computeMatricesFromInputs(){
     
@@ -83,7 +84,8 @@ void computeMatricesFromInputs(){
                                 );
     
     // Down vector
-    glm::vec3 up = glm::cross( right, direction );
+	//glm::vec3 up = glm::cross( right, direction );
+	up = glm::cross( right, direction );
     
     // Move forward
     if (glfwGetKey( window, GLFW_KEY_W ) == GLFW_PRESS){

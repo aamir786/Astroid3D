@@ -14,6 +14,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/norm.hpp>
 using namespace glm;
 
 #include "shader.hpp"
@@ -31,6 +32,7 @@ const int MAX_PARTICLES = 10000;
 GLFWwindow* window;
 
 Mesh *rock;
+Mesh *Missile;
 
 GLuint programID;
 GLuint programIDFCulling;
@@ -106,6 +108,141 @@ void renderGameObject(GameObject *obj)
 	renderMesh(obj->mesh);
 }
 
+quat RotateTowards(quat q1, quat q2, float maxAngle){
+
+	if( maxAngle < 0.001f ){
+		// No rotation allowed. Prevent dividing by 0 later.
+		return q1;
+	}
+
+	float cosTheta = dot(q1, q2);
+
+	// q1 and q2 are already equal.
+	// Force q2 just to be sure
+	if(cosTheta > 0.9999f){
+		return q2;
+	}
+
+	// Avoid taking the long path around the sphere
+	if (cosTheta < 0){
+		q1 = q1*-1.0f;
+		cosTheta *= -1.0f;
+	}
+
+	float angle = acos(cosTheta);
+
+	// If there is only a 2° difference, and we are allowed 5°,
+	// then we arrived.
+	if (angle < maxAngle){
+		return q2;
+	}
+
+	// This is just like slerp(), but with a custom t
+	float t = maxAngle / angle;
+	angle = maxAngle;
+
+	quat res = (sin((1.0f - t) * angle) * q1 + sin(t * angle) * q2) / sin(angle);
+	res = normalize(res);
+	return res;
+}
+quat gOrientation2;
+
+// Returns a quaternion such that q*start = dest
+quat RotationBetweenVectors(vec3 start, vec3 dest){
+	start = normalize(start);
+	dest = normalize(dest);
+
+	float cosTheta = dot(start, dest);
+	vec3 rotationAxis;
+
+	if (cosTheta < -1 + 0.001f){
+		// special case when vectors in opposite directions :
+		// there is no "ideal" rotation axis
+		// So guess one; any will do as long as it's perpendicular to start
+		// This implementation favors a rotation around the Up axis,
+		// since it's often what you want to do.
+		rotationAxis = cross(vec3(0.0f, 0.0f, 1.0f), start);
+		if (length2(rotationAxis) < 0.01 ) // bad luck, they were parallel, try again!
+			rotationAxis = cross(vec3(1.0f, 0.0f, 0.0f), start);
+
+		rotationAxis = normalize(rotationAxis);
+		return angleAxis(180.0f, rotationAxis);
+	}
+
+	// Implementation from Stan Melax's Game Programming Gems 1 article
+	rotationAxis = cross(start, dest);
+
+	float s = sqrt( (1+cosTheta)*2 );
+	float invs = 1 / s;
+
+	return quat(
+		s * 0.5f, 
+		rotationAxis.x * invs,
+		rotationAxis.y * invs,
+		rotationAxis.z * invs
+		);
+}
+
+
+
+// Returns a quaternion that will make your object looking towards 'direction'.
+// Similar to RotationBetweenVectors, but also controls the vertical orientation.
+// This assumes that at rest, the object faces +Z.
+// Beware, the first parameter is a direction, not the target point !
+quat LookAt(vec3 direction, vec3 desiredUp){
+
+	if (length2(direction) < 0.0001f )
+		return quat();
+
+	// Recompute desiredUp so that it's perpendicular to the direction
+	// You can skip that part if you really want to force desiredUp
+	vec3 right = cross(direction, desiredUp);
+	desiredUp = cross(right, direction);
+
+	// Find the rotation between the front of the object (that we assume towards +Z,
+	// but this depends on your model) and the desired direction
+	quat rot1 = RotationBetweenVectors(vec3(0.0f, 0.0f, 1.0f), direction);
+	// Because of the 1rst rotation, the up is probably completely screwed up. 
+	// Find the rotation between the "up" of the rotated object, and the desired up
+	vec3 newUp = rot1 * vec3(0.0f, 1.0f, 0.0f);
+	quat rot2 = RotationBetweenVectors(newUp, desiredUp);
+
+	// Apply them
+	return rot2 * rot1; // remember, in reverse order.
+}
+extern glm::vec3 up;
+
+void renderBullet(GameObject *obj, float deltaTime) {
+	vec3 desiredDir = getViewDirection();
+	vec3 desiredUp = vec3(0.0f, 1.0f, 0.0f); // +Y
+
+	// Compute the desired orientation
+	quat targetOrientation = normalize(LookAt(desiredDir, desiredUp));
+
+	// And interpolate
+	gOrientation2 = RotateTowards(gOrientation2, targetOrientation, 0.0);
+
+//	glm::mat4 RotationMatrix = (glm::lookAt(position, obj->position+desiredDir, desiredUp));	
+
+	glm::mat4 RotationMatrix    = mat4_cast(gOrientation2);
+	obj->position += deltaTime*obj->velocity;
+	glm::mat4 TranslationMatrix = translate(mat4(), obj->position);
+	glm::mat4 ScalingMatrix     = scale(mat4(), vec3(0.05f, 0.05f, 0.05f));
+	glm::mat4 ModelMatrix       = TranslationMatrix * RotationMatrix * ScalingMatrix;
+
+	glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
+	
+	//glUniformMatrix4fv(modelID, 1, GL_FALSE, &obj->getModelMatrix()[0][0]);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, obj->mesh->Dtexture);
+	glUniform1i(textureID, 0);
+	glBindVertexArray(obj->mesh->vao);
+	glDrawArrays(GL_TRIANGLES, 0, obj->mesh->vertices.size());
+	glBindVertexArray(0);
+}
+
+
 /*
 	GLFW mouse button event listener
 */
@@ -113,10 +250,38 @@ void onMouseButton(GLFWwindow* window, int button, int action, int mods) {
 	if(bFinished) return;
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		Bullet foo = Bullet(3, 10, rock);
+		Bullet foo = Bullet(3, 10, Missile);
 		foo.position = getViewPos();
 		foo.velocity = 10.0f * getViewDirection();
-		foo.scale = 0.05; //temporarily, until we get bullet models
+/*
+		vec3 dir = normalize(getViewDirection());
+		vec3 pos = normalize(getViewPos());
+		vec3 newPos = pos+dir;
+
+		quat q = RotationBetweenVectors(pos, newPos);
+
+		glm::vec3 euler = glm::eulerAngles(q) * 3.14159f / 180.f; //d2r
+
+		foo.addRotation(glm::normalize(euler), 90.0);
+
+
+//		foo.addRotation(glm::normalize(getViewDirection()), 1.0);
+
+		vec3 axis = glm::cross(pos, newPos);
+		axis = glm::normalize(axis);
+		
+		float c = glm::dot(pos, newPos);
+		float angle1 = glm::acos( c );
+
+
+		//float angle = glm::asin((float)axis.length());
+
+
+//		glm::mat4 RotationMatrix = glm::transpose(glm::lookAt(position, position+direction, up));	
+//		quat Rotation = glm::quat(RotationMatrix);
+//		foo.addRotation(glm::normalize(axis), angle1);
+*/
+
 		bullets.push_back(foo);
 	}
 }
@@ -492,6 +657,7 @@ int main(void){
 	
 	// Load the texture
 	GLuint RockTexture     = loadDDS("assets/uvmap.DDS");
+	GLuint MissileTexture  = loadDDS("assets/Missile.DDS");
 	GLuint NormalTexture   = loadDDS("assets/NormalMap1.dds");//NormalMap.DDS");
 	GLuint SpecularTexture = loadDDS("assets/specular1.DDS");//specular.dds");
 
@@ -528,6 +694,17 @@ int main(void){
 		return -1;
 	}
 	rock = new Mesh(vertices, uvs, normals, RockTexture, NormalTexture, SpecularTexture);
+
+	std::vector<glm::vec3> verticesMissile;
+	std::vector<glm::vec2> uvsMissile;
+	std::vector<glm::vec3> normalsMissile;
+	if(!loadOBJ("assets/Missile0.obj", verticesMissile, uvsMissile, normalsMissile)) {
+		fprintf(stderr, "Failed to load Missile0.obj");
+		getchar();
+		glfwTerminate();
+		return -1;
+	}
+	Missile = new Mesh(verticesMissile, uvsMissile, normalsMissile, MissileTexture, NormalTexture, SpecularTexture);
 
 	//create a bunch of random asteroids for demonstration
 	for (int i = 0; i < 20; i++) {
@@ -663,7 +840,7 @@ int main(void){
 				asteroids.erase(asteroids.begin() + i);
 			}
 		}
-
+		/*
 		//render bullets
 		for (int i = 0; i < bullets.size(); i++) {
 			Bullet *current = &bullets[i];
@@ -674,7 +851,7 @@ int main(void){
 			else {
 				bullets.erase(bullets.begin() + i);
 			}
-		}
+		}*/
 #pragma endregion ModelDrawingShader
 
 #pragma region ParticlesShader
@@ -839,7 +1016,35 @@ int main(void){
 		glDisableVertexAttribArray(0);
 		glBindVertexArray(0);
 #pragma endregion BillBoardShader
-		
+
+/************************************************************************/
+#pragma region BulletDrawingShader
+		// Use our shader
+		glUseProgram(programID);
+		glUniformMatrix4fv(viewID, 1, GL_FALSE, &ViewMatrix[0][0]);//
+		glUniformMatrix4fv(projectionID, 1, GL_FALSE, &ProjectionMatrix[0][0]);//
+		glm::vec3 lightColor = glm::vec3(100.0, 100.0, 100.0);
+		glUniform3fv(lightColorID, 1, &lightColor[0]);
+		glUniform3fv(lightPosID, 1, &lightPos[0]);//
+		glm::vec3 viewPos = getViewPos();
+		glUniform3fv(viewPosID, 1, &viewPos[0]);
+
+		glUniform1f(exponentID, 100.0);
+
+		//render bullets
+		for (int i = 0; i < bullets.size(); i++) {
+			Bullet *current = &bullets[i];
+			if (current->isAlive()) {
+				//current->update(time - lastTime);
+				renderBullet(current, time - lastTime);
+			}
+			else {
+				bullets.erase(bullets.begin() + i);
+			}
+		}
+#pragma endregion BulletDrawingShader
+/************************************************************************/
+
 		nFPS_uf = (short)(1.0/(glfwGetTime() - lastTime));
 		
 		lastTime = glfwGetTime();
@@ -867,9 +1072,11 @@ int main(void){
 	glDeleteTextures(1, &TextureIDBillboard);
 	glDeleteVertexArrays(1, &VertexArrayIDBillboard);
 	delete rock;
+	delete Missile;
 	glDeleteFramebuffers(1, &framebuffer);
     //glDeleteVertexArrays(1, &VertexArrayIDNormalMapping);
 	glDeleteTextures(1, &RockTexture);
+	glDeleteTextures(1, &MissileTexture);
 	glDeleteTextures(1, &NormalTexture);
 	glDeleteTextures(1, &SpecularTexture);
     
