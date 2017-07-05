@@ -212,7 +212,8 @@ quat LookAt(vec3 direction, vec3 desiredUp){
 }
 extern glm::vec3 up;
 
-void renderBullet(GameObject *obj, float deltaTime) {
+void renderBullet(GameObject *obj, float deltaTime)
+{
 	vec3 desiredDir = getViewDirection();
 	vec3 desiredUp = vec3(0.0f, 1.0f, 0.0f); // +Y
 
@@ -220,14 +221,14 @@ void renderBullet(GameObject *obj, float deltaTime) {
 	quat targetOrientation = normalize(LookAt(desiredDir, desiredUp));
 
 	// And interpolate
-	gOrientation2 = RotateTowards(gOrientation2, targetOrientation, 0.0);
+	gOrientation2 = RotateTowards(gOrientation2, targetOrientation, 360.0);// And interpolate
 
 //	glm::mat4 RotationMatrix = (glm::lookAt(position, obj->position+desiredDir, desiredUp));	
 
 	glm::mat4 RotationMatrix    = mat4_cast(gOrientation2);
 	obj->position += deltaTime*obj->velocity;
 	glm::mat4 TranslationMatrix = translate(mat4(), obj->position);
-	glm::mat4 ScalingMatrix     = scale(mat4(), vec3(0.05f, 0.05f, 0.05f));
+	glm::mat4 ScalingMatrix     = scale(mat4(), vec3(0.15f, 0.15f, 0.15f));
 	glm::mat4 ModelMatrix       = TranslationMatrix * RotationMatrix * ScalingMatrix;
 
 	glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
@@ -253,34 +254,7 @@ void onMouseButton(GLFWwindow* window, int button, int action, int mods) {
 		Bullet foo = Bullet(3, 10, Missile);
 		foo.position = getViewPos();
 		foo.velocity = 10.0f * getViewDirection();
-/*
-		vec3 dir = normalize(getViewDirection());
-		vec3 pos = normalize(getViewPos());
-		vec3 newPos = pos+dir;
-
-		quat q = RotationBetweenVectors(pos, newPos);
-
-		glm::vec3 euler = glm::eulerAngles(q) * 3.14159f / 180.f; //d2r
-
-		foo.addRotation(glm::normalize(euler), 90.0);
-
-
-//		foo.addRotation(glm::normalize(getViewDirection()), 1.0);
-
-		vec3 axis = glm::cross(pos, newPos);
-		axis = glm::normalize(axis);
-		
-		float c = glm::dot(pos, newPos);
-		float angle1 = glm::acos( c );
-
-
-		//float angle = glm::asin((float)axis.length());
-
-
-//		glm::mat4 RotationMatrix = glm::transpose(glm::lookAt(position, position+direction, up));	
-//		quat Rotation = glm::quat(RotationMatrix);
-//		foo.addRotation(glm::normalize(axis), angle1);
-*/
+		//foo.scale = 0.05f;
 
 		bullets.push_back(foo);
 	}
@@ -1035,7 +1009,7 @@ int main(void){
 		for (int i = 0; i < bullets.size(); i++) {
 			Bullet *current = &bullets[i];
 			if (current->isAlive()) {
-				//current->update(time - lastTime);
+				current->update(time - lastTime);
 				renderBullet(current, time - lastTime);
 			}
 			else {

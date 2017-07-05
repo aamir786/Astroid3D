@@ -7,7 +7,7 @@ Bullet::Bullet(float timeToLive, float damage, Mesh *mesh) : GameObject(mesh) {
 }
 
 void Bullet::update(float time) {
-	GameObject::update(time);
+	//GameObject::update(time);
 	age += time;
 }
 
