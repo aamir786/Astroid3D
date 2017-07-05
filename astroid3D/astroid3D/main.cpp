@@ -215,7 +215,7 @@ extern glm::vec3 up;
 void renderBullet(GameObject *obj, float deltaTime)
 {
 	vec3 desiredDir = getViewDirection();
-	vec3 desiredUp = vec3(0.0f, 1.0f, 0.0f); // +Y
+	vec3 desiredUp = up;//vec3(0.0f, 1.0f, 0.0f); // +Y
 
 	// Compute the desired orientation
 	quat targetOrientation = normalize(LookAt(desiredDir, desiredUp));
@@ -251,9 +251,9 @@ void onMouseButton(GLFWwindow* window, int button, int action, int mods) {
 	if(bFinished) return;
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		Bullet foo = Bullet(3, 10, Missile);
+		Bullet foo = Bullet(4, 10, Missile);
 		foo.position = getViewPos();
-		foo.velocity = 10.0f * getViewDirection();
+		foo.velocity = 15.0f * getViewDirection();
 		//foo.scale = 0.05f;
 
 		bullets.push_back(foo);
@@ -932,11 +932,18 @@ int main(void){
 
 		char text[256];
 		float fTimeOut = 180.0f - glfwGetTime();
-		if(fTimeOut <= 0.0f) {
+		if(asteroids.size() <= 0){
+			bFinished = true;
+			//fTimeOut = 0.0f;
+			printText2D("Congratulation, You Win!!!", 1024/2-300, 768/2-50, 20);
+		}
+		else if(fTimeOut <= 0.0f) {
 			bFinished = true;
 			fTimeOut = 0.0f;
-			printText2D("Game End", 1024/2-200, 768/2-50, 30);
+			printText2D("Game Over", 1024/2-200, 768/2-50, 30);
 		}
+		
+
 		sprintf(text,"Time : %.2f sec", fTimeOut);
 		printText2D(text, 10, 550, 20);
 		sprintf(text,"Asteroids : %d", asteroids.size() );

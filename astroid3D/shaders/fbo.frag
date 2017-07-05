@@ -16,11 +16,11 @@ void main(){
 	lum*=3.0;
 	if(lum<0.4){
 		lum=0.4;
-	}else if(lum>1.0){
+	}/*else if(lum>1.0){
 		lum=0.4;
 	}else if(isnan(lum)){
 		lum=0.5;
-	}
+	}*/
 	float T=pow(lum, -1.0);
 	vec3 temp=texture(fbTexture, UV).rgb+texture(brightTexture, UV).rgb;
 	

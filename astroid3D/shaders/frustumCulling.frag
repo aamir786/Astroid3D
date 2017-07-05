@@ -23,7 +23,7 @@ void main()
 	vec3 V=normalize(viewPos-worldPosgout); //view vector
 	vec3 H=normalize(L+V); //blinn halfway vector
 	
-	color = lc*(dot(L, Ngout)*texture(myTextureSampler, UVgout).rgb + pow(dot(Ngout, H), exponent));
+	color = lc*(dot(L, Ngout)*texture(myTextureSampler, UVgout).rgb + pow(max(dot(Ngout, H), 0.0), exponent));
 	if(dot(color, vec3(0.2126, 0.7152, 0.0722))>1.0){
 		brightColor=color;
 	}
